@@ -66,9 +66,7 @@ Layer *card_layer_get_layer(CardLayer *card_layer) {
 }
 
 static void draw_barcode_matrix(CardLayer *card_layer, GContext* ctx) {
-    int16_t raw_x, raw_y, point_x, point_y;
-    raw_x = 0;
-    raw_y = 0;
+    int16_t origin_x, origin_y, end_x;
 
     int16_t img_pixels = card_layer->barcode_width * card_layer->barcode_height;
 
@@ -88,7 +86,13 @@ static void draw_barcode_matrix(CardLayer *card_layer, GContext* ctx) {
 
     // actual scaling factor is the least of x and y scaling, but at least 1
     const int16_t SCALING_FACTOR = MAX( MIN(SCALING_FACTOR_X, SCALING_FACTOR_Y), 1);
-
+  
+    origin_x = ( PEBBLE_WIDTH/2 - (SCALING_FACTOR * card_layer->barcode_width)/2 );
+    origin_y = ( MID_HEIGHT - (SCALING_FACTOR * card_layer->barcode_height)/2 );
+    end_x = card_layer->barcode_width * SCALING_FACTOR + origin_x;
+    
+    GRect rect = GRect(origin_x, origin_y, SCALING_FACTOR, SCALING_FACTOR);
+  
     APP_LOG(APP_LOG_LEVEL_DEBUG, "image size %ix%i, scaling by %i", card_layer->barcode_width, card_layer->barcode_height, SCALING_FACTOR);
 
     // The comparison part of this loop adds 7 to the barcode width to allow C
@@ -102,37 +106,29 @@ static void draw_barcode_matrix(CardLayer *card_layer, GContext* ctx) {
 
         for (int8_t p = 0; p < 8; p++) {
             if (card_layer->barcode_data[current_byte] & (1 << p)) {
-
-                for(int8_t s_x = 0; s_x < SCALING_FACTOR; s_x++) {
-                    for(int8_t s_y = 0; s_y < SCALING_FACTOR; s_y++) {
-                        point_x = ( PEBBLE_WIDTH/2 - (SCALING_FACTOR * card_layer->barcode_width)/2 ) + SCALING_FACTOR*raw_x + s_x;
-                        point_y = ( MID_HEIGHT - (SCALING_FACTOR * card_layer->barcode_height)/2 ) + SCALING_FACTOR*raw_y + s_y;
-
-                        graphics_draw_pixel(ctx, GPoint(point_x, point_y));
-                    }
-                }
+              graphics_fill_rect(ctx, rect, 0, GCornerNone);              
             }
 
-            raw_x++;
-            if (raw_x == card_layer->barcode_width ) {
-                raw_x = 0;
-                raw_y++;
+            rect.origin.x += SCALING_FACTOR;
+            if (rect.origin.x == end_x ) {
+                rect.origin.x = origin_x;
+                rect.origin.y += SCALING_FACTOR;
             }
         }
     }
 }
 
 static void draw_barcode_linear(CardLayer *card_layer, GContext* ctx) {
-    int16_t raw_x, point_x, point_y;
-
-    raw_x = 0;
-
     int16_t img_pixels = card_layer->barcode_width;
 
     // Try to do an integer scale if possible, keep white border of 1 unit on each side
     const int16_t SCALING_FACTOR_X = PEBBLE_WIDTH / (card_layer->barcode_width + 2);
     const int16_t SCALING_FACTOR = MAX( SCALING_FACTOR_X, 1);
 
+    GRect rect = GRect(( PEBBLE_WIDTH/2 - (SCALING_FACTOR * card_layer->barcode_width)/2 ),
+                      ( PEBBLE_HEIGHT / 2 - card_layer->barcode_height / 2 ),
+                      SCALING_FACTOR, card_layer->barcode_height);
+  
     // The comparison part of this loop adds 7 to the barcode width to allow C
     // to ceil the byte count. Since the server will always pad incomplete bytes
     // with 0, this is reasonably safe.
@@ -144,18 +140,9 @@ static void draw_barcode_linear(CardLayer *card_layer, GContext* ctx) {
 
         for (int16_t current_pixel = 0; current_pixel < 8; current_pixel++) {
             if (card_layer->barcode_data[current_byte] & (1 << current_pixel)) {
-                for(int8_t s_x = 0; s_x < SCALING_FACTOR; s_x++) {
-                    point_x = ( PEBBLE_WIDTH/2 - (SCALING_FACTOR * card_layer->barcode_width)/2 ) + SCALING_FACTOR*raw_x + s_x;
-
-                    for (int16_t current_vertical = 0; current_vertical < card_layer->barcode_height; current_vertical++) {
-                        point_y = ( PEBBLE_HEIGHT / 2 - card_layer->barcode_height / 2 ) + current_vertical;
-
-                        graphics_draw_pixel(ctx, GPoint(point_x, point_y));
-                    }
-                }
+              graphics_fill_rect(ctx, rect, 0, GCornerNone);
             }
-
-            raw_x++;
+            rect.origin.x += SCALING_FACTOR;
         }
     }
 }
