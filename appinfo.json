@@ -24,14 +24,14 @@
                 "type": "png"
             },
             {
-                "file": "images/error.png",
-                "name": "IMAGE_ERROR",
-                "type": "png"
-            },
-            {
                 "file": "images/icon.png",
                 "menuIcon": true,
                 "name": "IMAGE_MENU_ICON",
+                "type": "png"
+            },
+            {
+                "file": "images/error.png",
+                "name": "IMAGE_ERROR",
                 "type": "png"
             }
         ]
